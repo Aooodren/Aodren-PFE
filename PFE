@@ -1,0 +1,259 @@
+import React, { useState } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ArrowRight, RotateCcw, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
+const DecisionTree = () => {
+  const [step, setStep] = useState(0);
+  const [context, setContext] = useState({
+    type: '',
+    urgence: 0,
+    participants: 0,
+    decisions: []
+  });
+
+  const typeReunions = [
+    { id: 'operationnel', label: 'Opérationnel / Daily', score: 1 },
+    { id: 'projet', label: 'Suivi de projet', score: 2 },
+    { id: 'strategie', label: 'Stratégie / Planning', score: 3 },
+    { id: 'crise', label: 'Gestion de crise', score: 4 }
+  ];
+
+  const questions = {
+    operationnel: [
+      {
+        text: "Les participants sont-ils tous disponibles au même moment ?",
+        criteria: "Impact sur la productivité de l'équipe",
+        weight: 2
+      },
+      {
+        text: "Y a-t-il des blocages à résoudre en équipe ?",
+        criteria: "Problèmes techniques ou organisationnels",
+        weight: 3
+      },
+      {
+        text: "Avez-vous des updates visuelles à partager ?",
+        criteria: "Démos, prototypes, interfaces",
+        weight: 2
+      }
+    ],
+    projet: [
+      {
+        text: "Y a-t-il des décisions importantes à prendre ?",
+        criteria: "Impact sur le planning ou le budget",
+        weight: 3
+      },
+      {
+        text: "Avez-vous besoin de feedback immédiat ?",
+        criteria: "Validation de solutions ou d'approches",
+        weight: 2
+      },
+      {
+        text: "Y a-t-il des risques à adresser en équipe ?",
+        criteria: "Retards, problèmes techniques, ressources",
+        weight: 3
+      }
+    ],
+    strategie: [
+      {
+        text: "Les parties prenantes sont-elles toutes concernées ?",
+        criteria: "Impact sur la direction du projet/entreprise",
+        weight: 4
+      },
+      {
+        text: "Le sujet nécessite-t-il un consensus ?",
+        criteria: "Alignement sur les objectifs ou la vision",
+        weight: 3
+      },
+      {
+        text: "Y a-t-il des données complexes à analyser ensemble ?",
+        criteria: "Analyses, rapports, métriques",
+        weight: 2
+      }
+    ],
+    crise: [
+      {
+        text: "La situation impacte-t-elle plusieurs équipes ?",
+        criteria: "Coordination nécessaire",
+        weight: 4
+      },
+      {
+        text: "Une décision rapide est-elle requise ?",
+        criteria: "Impact immédiat sur l'activité",
+        weight: 4
+      },
+      {
+        text: "Y a-t-il des informations sensibles à partager ?",
+        criteria: "Confidentialité, sécurité",
+        weight: 3
+      }
+    ]
+  };
+
+  const getWeightedScore = () => {
+    if (!context.type) return 0;
+    
+    const typeScore = typeReunions.find(t => t.id === context.type).score;
+    const decisionsScore = context.decisions.reduce((acc, curr, idx) => {
+      return acc + (curr ? questions[context.type][idx].weight : 0);
+    }, 0);
+    
+    const maxPossibleScore = questions[context.type].reduce((acc, q) => acc + q.weight, 0);
+    return ((decisionsScore / maxPossibleScore) * 100) + (typeScore * 5);
+  };
+
+  const getRecommendation = () => {
+    const score = getWeightedScore();
+    const nbParticipants = context.participants;
+    
+    if (score > 75) {
+      return {
+        decision: "Une réunion est fortement recommandée",
+        format: nbParticipants > 8 ? "Format suggéré: Réunion structurée avec ordre du jour détaillé" :
+                nbParticipants > 4 ? "Format suggéré: Réunion collaborative avec tours de table" :
+                "Format suggéré: Discussion courte et focalisée",
+        duree: nbParticipants > 8 ? "Durée conseillée: 1h-1h30" :
+               nbParticipants > 4 ? "Durée conseillée: 45min-1h" :
+               "Durée conseillée: 30min",
+        color: "bg-green-100"
+      };
+    } else if (score > 50) {
+      return {
+        decision: "Une réunion peut être bénéfique",
+        format: "Considérez un format hybride : réunion courte + suivi asynchrone",
+        duree: "Durée conseillée: 30min maximum",
+        color: "bg-yellow-100"
+      };
+    } else {
+      return {
+        decision: "Une réunion n'est probablement pas nécessaire",
+        format: "Privilégiez une communication asynchrone",
+        alternatives: "Alternatives suggérées: email détaillé, document partagé, messages directs",
+        color: "bg-red-100"
+      };
+    }
+  };
+
+  const handleTypeSelect = (type) => {
+    setContext({ ...context, type: type });
+    setStep(1);
+  };
+
+  const handleParticipantsCount = (count) => {
+    setContext({ ...context, participants: count });
+    setStep(2);
+  };
+
+  const handleAnswer = (answer) => {
+    const newDecisions = [...context.decisions, answer];
+    setContext({ ...context, decisions: newDecisions });
+    
+    if (newDecisions.length === questions[context.type].length) {
+      setStep(4); // Final step
+    }
+  };
+
+  const reset = () => {
+    setStep(0);
+    setContext({
+      type: '',
+      urgence: 0,
+      participants: 0,
+      decisions: []
+    });
+  };
+
+  return (
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Analyse personnalisée du besoin en réunion</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {step === 0 && (
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium">Quel type de réunion envisagez-vous ?</h3>
+            <div className="grid grid-cols-1 gap-4">
+              {typeReunions.map((type) => (
+                <Button 
+                  key={type.id}
+                  onClick={() => handleTypeSelect(type.id)}
+                  variant="outline"
+                  className="justify-start h-auto py-4"
+                >
+                  {type.label}
+                  <ArrowRight className="ml-auto h-4 w-4" />
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === 1 && (
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium">Combien de participants prévoyez-vous ?</h3>
+            <div className="grid grid-cols-2 gap-4">
+              {[2, 5, 8, 12].map((count) => (
+                <Button 
+                  key={count}
+                  onClick={() => handleParticipantsCount(count)}
+                  variant="outline"
+                >
+                  {count === 12 ? `${count}+` : `${count}`} personnes
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === 2 && context.type && questions[context.type] && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium">
+                {questions[context.type][context.decisions.length].text}
+              </h3>
+              <p className="text-sm text-gray-500">
+                {questions[context.type][context.decisions.length].criteria}
+              </p>
+            </div>
+            <div className="flex space-x-4">
+              <Button onClick={() => handleAnswer(true)} className="flex-1">
+                Oui <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              <Button onClick={() => handleAnswer(false)} variant="outline" className="flex-1">
+                Non <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-6">
+            <div className={`p-4 rounded-lg ${getRecommendation().color}`}>
+              <h3 className="text-lg font-medium">{getRecommendation().decision}</h3>
+              <p className="mt-2">{getRecommendation().format}</p>
+              <p className="mt-2">{getRecommendation().duree}</p>
+              {getRecommendation().alternatives && (
+                <p className="mt-2">{getRecommendation().alternatives}</p>
+              )}
+            </div>
+            
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Score de nécessité: {getWeightedScore().toFixed(0)}%
+              </AlertDescription>
+            </Alert>
+
+            <Button onClick={reset} variant="outline" className="w-full">
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Recommencer l'analyse
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default DecisionTree;
